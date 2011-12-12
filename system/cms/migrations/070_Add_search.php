@@ -5,6 +5,8 @@ class Migration_Add_search extends CI_Migration {
 	public function up()
 	{
 		$this->dbforge->drop_table('search');
+		$this->dbforge->drop_table('search_logs');
+		$this->db->where('module', 'search')->delete('settings');
 
 		$search = "
 			CREATE TABLE ".$this->db->dbprefix('search')."
@@ -22,6 +24,17 @@ class Migration_Add_search extends CI_Migration {
 			) ENGINE=MyISAM COLLATE=utf8_unicode_ci;
 		";
 		
+		$search_log = "
+			CREATE TABLE ".$this->db->dbprefix('search_logs')."
+			(
+			  term VARCHAR(255) NOT NULL DEFAULT '',
+			  matches TEXT NOT NULL,
+			  ip_address VARCHAR(16) NOT NULL DEFAULT '',
+			  time int(11) NOT NULL DEFAULT 0,
+			  PRIMARY KEY (term)
+			) ENGINE=MyISAM COLLATE=utf8_unicode_ci;
+		";
+		
 		$search_active = array(
 			'slug' => 'search_active',
 			'title' => 'Activate Search',
@@ -35,7 +48,24 @@ class Migration_Add_search extends CI_Migration {
 			'module' => 'search'
 		);
 		
-		if ($this->db->query($search) AND $this->db->query($search_active))
+		$search_index = array(
+			'slug' => 'search_index',
+			'title' => 'Index Content',
+			'description' => 'A page is indexed when it is loaded by a logged out user. Who shall we have trigger the indexing?',
+			'`default`' => 'everyone',
+			'`value`' => 'everyone',
+			'type' => 'select',
+			'`options`' => 'everyone=Any Visitor|bots=Only Robots',
+			'is_required' => 1,
+			'is_gui' => 1,
+			'module' => 'search'
+		);
+		
+		if ($this->db->query($search) AND
+			$this->db->query($search_log) AND
+			$this->db->insert('settings', $search_active) AND
+			$this->db->insert('settings', $search_index)
+			)
 		{
 			return TRUE;
 		}

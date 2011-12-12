@@ -77,7 +77,7 @@ class Public_Controller extends MY_Controller
 	    }
 		
 		// Load the search model so the Template lib can trigger indexing
-		$this->load->model('search/search_m');
+		$this->load->model(array('search/search_m', 'search/search_log_m'));
 
 	    // Frontend data
 	    $this->load->library('variables/variables');

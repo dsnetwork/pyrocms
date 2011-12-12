@@ -10,6 +10,8 @@
  */
 class Search_m extends MY_Model {
 
+	private $_matches = array();
+
 	public function __construct()
 	{
 		$this->_table = 'search';
@@ -27,10 +29,21 @@ class Search_m extends MY_Model {
 	 */
 	public function index($title, $content)
 	{
+		// they've specified only to index when a bot loads the page.
+		if (Settings::get('search_index') == 'bots')
+		{
+			$this->load->library('user_agent');
+			// it's not a bot - run!
+			if ( ! $this->agent->is_robot())
+			{
+				return TRUE;
+			}
+		}
+
 		$skip = array('system', 'addons', '404', 'search');
 		
-		// There's some pages we don't want to index.
-		if ( /*! $this->current_user AND*/ ! in_array($this->uri->segment(1), $skip))
+		// There's some pages we don't want to index. Restricted pages, file missing, 404...
+		if ( ! $this->current_user AND ! in_array($this->uri->segment(1), $skip))
 		{
 			// strip all scripts, styles, html entities, and html tags
 			$result = preg_replace('/(<(style|script)[^>]*>)(.*?)(<\/\2>)|(<[^<]+?>)|(&#?\w+?;)/ms', ' ', $content);
@@ -39,10 +52,11 @@ class Search_m extends MY_Model {
 			// hash the page content
 			$content_hash = md5($text);
 	
+			// see if we have it indexed
 			$stored = $this->select('hash')
 				->get_by('uri', $this->uri->uri_string());
 	
-			// we've previously indexed this page. Has it changed?
+			// we've previously indexed this page but has it changed?
 			if ($stored AND ($stored->hash !== $content_hash))
 			{
 				// out with the old and in with the new
@@ -73,17 +87,24 @@ class Search_m extends MY_Model {
 		}
 	}
 	
+	/**
+	 * Perform the fulltext search
+	 *
+	 * @param	string	$term	The search term
+	 * @param	int		$offset
+	 * @param	int		$limit
+	 *
+	 * @return	mixed
+	 */
 	public function search($term, $offset = 0, $limit = 0)
 	{
-		$term = $this->db->escape($term);
-		$term = $this->security->xss_clean($term);
-
-		$sql = "SELECT uri, title, output
+		$sql = "SELECT uri, title, output, hash
 					FROM ".$this->db->dbprefix('search')."
 					WHERE MATCH (title, output) AGAINST (?) > 0
-					LIMIT ? OFFSET ?";
+					LIMIT ?, ?
+					";
 
-		$results = $this->db->query($sql, array($term, (int) $limit, (int) $offset))
+		$results = $this->db->query($sql, array($term, (int) $offset, (int) $limit))
 			->result();
 			
 		if ($results)
@@ -93,7 +114,28 @@ class Search_m extends MY_Model {
 				// and show the introduction to the page
 				$intro = wordwrap($result->output, 300, '<br/>');
 				$result->intro = substr($intro, 0, strpos($intro, '<br/>'));
+				
+				$this->_matches[] = $result->hash;
 			}
+
+			$data = array('term' => $term,
+						  'matches' => implode(',', $this->_matches),
+						  'ip_address' => $this->input->ip_address(),
+						  'time' => now()
+						  );
+
+			// log the search results
+			if ($this->search_log_m->get_by('term', $term))
+			{
+				$this->search_log_m->update_by('term', $term, $data);
+			}
+			else
+			{
+				$this->search_log_m->insert($data);
+			}
+			
+			// delete old searches
+			$this->search_log_m->cleanup();
 		}
 		
 		return $results;
@@ -101,9 +143,6 @@ class Search_m extends MY_Model {
  
 	public function count_search_results($term)
 	{
-		$term = $this->db->escape($term);
-		$term = $this->security->xss_clean($term);
-
 		$sql = "SELECT COUNT(*) AS count
 					FROM ".$this->db->dbprefix('search')."
 					WHERE MATCH (title, output) AGAINST (?)";

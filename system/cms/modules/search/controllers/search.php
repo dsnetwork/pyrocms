@@ -30,21 +30,23 @@ class Search extends Public_Controller
 	public function index($query = '', $offset = 0)
 	{
 		$this->load->library('form_validation');
+		$this->load->model('search_log_m');
 		$this->load->helper('form');
+		$limit = 25;
 
 		// do we have a query passed in the url?
 		if ($query > '') $_POST['search_term'] = urldecode($query);
-
-		$term = $this->input->post('search_term');
 
 		$this->form_validation->set_rules($this->_validation);
 
 		if ($this->form_validation->run())
 		{
-			$data->results = $this->search_m->search($term, $offset, 1);
+			$term = $this->input->post('search_term');
+
+			$data->results = $this->search_m->search($term, $offset, $limit);
 			$data->result_count = $this->search_m->count_search_results($term);
 
-			$data->pagination = create_pagination('search/'.urlencode($term), $data->result_count, 1, 3);
+			$data->pagination = create_pagination('search/'.urlencode($term), $data->result_count, $limit, 3);
 		}
 
 		foreach ($this->_validation AS $rule)
