@@ -75,6 +75,9 @@ class Public_Controller extends MY_Controller
 	    {
 			$this->template->append_metadata('<link rel="alternate" type="application/rss+xml" title="'.$this->settings->site_name.'" href="'.site_url('blog/rss/all.rss').'" />');
 	    }
+		
+		// Load the search model so the Template lib can trigger indexing
+		$this->load->model('search/search_m');
 
 	    // Frontend data
 	    $this->load->library('variables/variables');

@@ -253,6 +253,13 @@ class Template
 		// Test to see if this file
 		$this->_body = $this->_find_view( $view, array(), $this->_parser_body_enabled );
 
+		// If we're on the front-end then give Search a chance to index this page
+		if (class_exists('Search_m'))
+		{
+			// Pass along the page title and the content
+			$this->_ci->search_m->index($this->_title, $this->_body);
+		}
+
 		// Want this file wrapped with a layout file?
 		if ($this->_layout)
 		{
