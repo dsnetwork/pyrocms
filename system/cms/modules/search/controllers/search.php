@@ -17,6 +17,8 @@ class Search extends Public_Controller
 		parent::__construct();
 		
 		$this->lang->load('search');
+		$this->load->model('search_m');
+		$this->load->model('search_log_m');
 	}
 	
 	private $_validation	= array(
