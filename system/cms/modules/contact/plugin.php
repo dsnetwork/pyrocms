@@ -151,6 +151,7 @@ class Plugin_Contact extends Plugin {
 					}
 
 					// Build the array to pass to the form_dropdown() helper
+					$dropdown = array();
 					foreach ($values AS $item)
 					{
 						$item = explode('=', $item);
